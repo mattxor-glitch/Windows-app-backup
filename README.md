@@ -6,7 +6,9 @@ It's a single `WindowsAppBackup.exe` (no install, no .NET needed) for Windows 10
 
 ## Download
 
-Every push to `main` builds the exe. Open the **Actions** tab → latest **Build** run → **Artifacts** → `WindowsAppBackup`. Tagging a version (`git tag v1.0.0 && git push --tags`) also attaches the exe to a GitHub Release.
+Get `WindowsAppBackup.exe` from the [latest release](https://github.com/mattxor-glitch/windows-app-backup/releases/latest).
+
+To publish a new version, change `<Version>` in `src/AppBackup.App/AppBackup.App.csproj` and push to `main`. The build creates the `v<Version>` tag and a Release with the exe. Every push also leaves the exe under **Actions** → **Build** run → **Artifacts** (kept for 90 days).
 
 ## Back up
 

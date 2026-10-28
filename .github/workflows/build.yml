@@ -3,7 +3,6 @@ name: Build
 on:
   push:
     branches: [ main ]
-    tags: [ 'v*' ]
   pull_request:
   workflow_dispatch:
 
@@ -36,8 +35,29 @@ jobs:
           name: WindowsAppBackup
           path: publish/WindowsAppBackup.exe
 
-      - name: Attach to release (tags only)
-        if: startsWith(github.ref, 'refs/tags/v')
+      # Releases: bump <Version> in src/AppBackup.App/AppBackup.App.csproj and push to main.
+      # If there's no tag for that version yet, this creates v<Version> and a Release with the exe.
+      - name: Check whether this version is released
+        id: version
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        run: |
+          [xml]$proj = Get-Content src/AppBackup.App/AppBackup.App.csproj
+          $ver = ($proj.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version
+          $tag = "v$ver"
+          $exists = git ls-remote --tags origin "refs/tags/$tag"
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "new=$([string]::IsNullOrEmpty($exists).ToString().ToLower())" >> $env:GITHUB_OUTPUT
+          Write-Host "Version $ver, tag exists: $(-not [string]::IsNullOrEmpty($exists))"
+
+      - name: Create release
+        if: steps.version.outputs.new == 'true'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: Windows App Backup ${{ steps.version.outputs.tag }}
+          body: |
+            Download **WindowsAppBackup.exe** below. No install needed; runs on Windows 10 and 11.
+            See the README for how to back up and restore.
           files: publish/WindowsAppBackup.exe
