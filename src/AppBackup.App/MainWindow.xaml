@@ -1,0 +1,278 @@
+<Window x:Class="AppBackup.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Windows App Backup" Width="1180" Height="800" MinWidth="900" MinHeight="600"
+        FontFamily="Segoe UI" FontSize="13" Background="White"
+        WindowStartupLocation="CenterScreen" Icon="app.ico">
+
+  <Window.Resources>
+    <!-- Hides a block when its bound text is empty. -->
+    <Style x:Key="HideWhenNull" TargetType="Border">
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding Note}" Value="{x:Null}">
+          <Setter Property="Visibility" Value="Collapsed" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+  </Window.Resources>
+
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="5" />
+      <RowDefinition Height="140" MinHeight="60" />
+    </Grid.RowDefinitions>
+
+    <!-- Header -->
+    <Border Grid.Row="0" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="16,10">
+      <DockPanel>
+        <Button x:Name="ElevateButton" DockPanel.Dock="Right" Content="Restart as administrator" Click="Elevate_Click" Margin="0"
+                ToolTip="Needed to restore data under Program Files or ProgramData" />
+        <StackPanel>
+          <TextBlock Text="Windows App Backup" FontSize="18" FontWeight="SemiBold" />
+          <TextBlock Style="{StaticResource Hint}"
+                     Text="Collects your apps' installers and settings, then puts them back on a new PC or after reinstalling Windows." />
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
+    <TabControl x:Name="Tabs" Grid.Row="1" Margin="12,10,12,0" Padding="10">
+
+      <!-- ===================== BACK UP ===================== -->
+      <TabItem Header="  Back up  ">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+
+          <DockPanel Grid.Row="0" Margin="0,0,0,8">
+            <Button x:Name="ScanButton" Content="Scan this PC" Style="{StaticResource PrimaryButton}" Click="Scan_Click" />
+            <Button Content="Tick all" Click="SelectAll_Click" />
+            <Button Content="Untick all" Click="SelectNone_Click" />
+            <TextBlock x:Name="CountText" VerticalAlignment="Center" Style="{StaticResource Hint}" Margin="8,0" />
+            <TextBox x:Name="SearchBox" DockPanel.Dock="Right" Width="240" HorizontalAlignment="Right"
+                     TextChanged="Search_TextChanged" ToolTip="Filter the list" />
+            <TextBlock Text="Search" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,6,0" />
+          </DockPanel>
+
+          <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="3*" />
+              <ColumnDefinition Width="6" />
+              <ColumnDefinition Width="2*" MinWidth="320" />
+            </Grid.ColumnDefinitions>
+
+            <Grid Grid.Column="0">
+              <DataGrid x:Name="AppsGrid" SelectionChanged="AppsGrid_SelectionChanged">
+                <DataGrid.Columns>
+                  <DataGridTemplateColumn Header="" Width="34" SortMemberPath="Include">
+                    <DataGridTemplateColumn.CellTemplate>
+                      <DataTemplate>
+                        <CheckBox IsChecked="{Binding Include, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" Margin="0" />
+                      </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                  </DataGridTemplateColumn>
+                  <DataGridTextColumn Header="App" Binding="{Binding Name}" Width="2*" />
+                  <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="90" />
+                  <DataGridTextColumn Header="Reinstall with" Binding="{Binding InstallMethod}" Width="110" />
+                  <DataGridTextColumn Header="Settings &amp; data" Binding="{Binding DataSummary}" Width="1.3*" />
+                </DataGrid.Columns>
+              </DataGrid>
+              <TextBlock x:Name="EmptyHint" HorizontalAlignment="Center" VerticalAlignment="Center" Style="{StaticResource Hint}"
+                         TextAlignment="Center" Width="380"
+                         Text="Press “Scan this PC” to list your installed apps. Ticked apps get their installer and settings saved." />
+            </Grid>
+
+            <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Stretch" Background="Transparent" />
+
+            <!-- Details for the selected app -->
+            <Border Grid.Column="2" BorderBrush="{StaticResource Line}" BorderThickness="1" Background="{StaticResource Panel}">
+              <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="DetailsPanel" Margin="12" Visibility="Collapsed"
+                            DataContext="{Binding SelectedItem, ElementName=AppsGrid}">
+                  <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
+                  <TextBlock Style="{StaticResource Hint}">
+                    <Run Text="{Binding Publisher, Mode=OneWay}" /> <Run Text="{Binding Version, Mode=OneWay}" />
+                  </TextBlock>
+
+                  <Border Style="{StaticResource HideWhenNull}" Background="#FFF6DB" BorderBrush="#E8D08A" BorderThickness="1"
+                          Padding="8,6" Margin="0,8,0,0" CornerRadius="3">
+                    <TextBlock Text="{Binding Note}" TextWrapping="Wrap" />
+                  </Border>
+
+                  <TextBlock Text="How to reinstall it" Style="{StaticResource SectionLabel}" />
+                  <TextBlock Text="winget id (installs the latest version from the internet)" Style="{StaticResource Hint}" />
+                  <TextBox Text="{Binding WingetId, UpdateSourceTrigger=PropertyChanged}" Margin="0,2,0,6" />
+
+                  <TextBlock Text="Installer file (copied into the backup)" Style="{StaticResource Hint}" />
+                  <DockPanel Margin="0,2,0,6">
+                    <Button DockPanel.Dock="Right" Content="Clear" MinWidth="50" Margin="4,0,0,0" Click="ClearInstaller_Click" />
+                    <Button DockPanel.Dock="Right" Content="Browse…" MinWidth="70" Margin="4,0,0,0" Click="BrowseInstaller_Click" />
+                    <TextBox Text="{Binding InstallerPath, UpdateSourceTrigger=PropertyChanged}" />
+                  </DockPanel>
+
+                  <TextBlock Text="Installer arguments (optional, e.g. /S for a silent install)" Style="{StaticResource Hint}" />
+                  <TextBox Text="{Binding InstallerArgs, UpdateSourceTrigger=PropertyChanged}" Margin="0,2,0,0" />
+
+                  <TextBlock Text="Settings &amp; data folders" Style="{StaticResource SectionLabel}" />
+                  <ItemsControl x:Name="DataList" ItemsSource="{Binding Data}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <DockPanel Margin="0,2">
+                          <Button DockPanel.Dock="Right" Content="✕" MinWidth="26" Padding="4,0" Margin="4,0,0,0"
+                                  ToolTip="Remove" Click="RemoveData_Click" Tag="{Binding}" />
+                          <TextBlock DockPanel.Dock="Right" Text="{Binding SizeText}" Style="{StaticResource Hint}"
+                                     Margin="6,0,0,0" VerticalAlignment="Center" />
+                          <CheckBox IsChecked="{Binding Include}" Click="DataToggle_Click" Margin="0">
+                            <TextBlock Text="{Binding Path}" TextTrimming="CharacterEllipsis" ToolTip="{Binding ExpandedPath}" />
+                          </CheckBox>
+                        </DockPanel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                    <Button Content="Add folder…" Click="AddFolder_Click" />
+                    <Button Content="Add file…" Click="AddFile_Click" />
+                  </StackPanel>
+
+                  <TextBlock Text="Registry settings (your user only)" Style="{StaticResource SectionLabel}" />
+                  <ItemsControl x:Name="RegList" ItemsSource="{Binding Registry}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <DockPanel Margin="0,2">
+                          <Button DockPanel.Dock="Right" Content="✕" MinWidth="26" Padding="4,0" Margin="4,0,0,0"
+                                  ToolTip="Remove" Click="RemoveReg_Click" Tag="{Binding}" />
+                          <CheckBox IsChecked="{Binding Include}" Click="DataToggle_Click" Margin="0">
+                            <TextBlock Text="{Binding Key}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Key}" />
+                          </CheckBox>
+                        </DockPanel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <DockPanel Margin="0,6,0,0">
+                    <Button DockPanel.Dock="Right" Content="Add key" Margin="4,0,0,0" Click="AddReg_Click" />
+                    <TextBox x:Name="NewRegKey" ToolTip="e.g. HKCU\Software\MyApp" />
+                  </DockPanel>
+                  <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,0" Text="Only HKCU keys can be added, e.g. HKCU\Software\MyApp" />
+                </StackPanel>
+              </ScrollViewer>
+            </Border>
+          </Grid>
+
+          <!-- Destination & options -->
+          <StackPanel Grid.Row="2" Margin="0,10,0,0">
+            <WrapPanel>
+              <CheckBox x:Name="SkipCachesBox" Content="Skip caches, logs and temp files" IsChecked="True" />
+              <CheckBox x:Name="DownloadWingetBox" Content="Also save installers for winget apps (restore without internet)" />
+            </WrapPanel>
+            <DockPanel Margin="0,8,0,0">
+              <TextBlock Text="Save backup to" VerticalAlignment="Center" Margin="0,0,8,0" />
+              <Button x:Name="CancelBackupButton" DockPanel.Dock="Right" Content="Cancel" IsEnabled="False" Click="Cancel_Click" Margin="8,0,0,0" />
+              <Button x:Name="BackupButton" DockPanel.Dock="Right" Content="Back up" Style="{StaticResource PrimaryButton}"
+                      Click="Backup_Click" Margin="8,0,0,0" IsEnabled="False" />
+              <Button DockPanel.Dock="Right" Content="Browse…" Click="BrowseDest_Click" Margin="8,0,0,0" />
+              <TextBox x:Name="DestBox" />
+            </DockPanel>
+            <TextBlock x:Name="DestWarning" Foreground="#B04A00" Margin="0,4,0,0" TextWrapping="Wrap" Visibility="Collapsed"
+                       Text="This folder is on the Windows drive. If you're reinstalling Windows, save to a USB drive or another disk instead." />
+            <Grid Margin="0,8,0,0">
+              <ProgressBar x:Name="BackupProgress" Height="18" Maximum="1" />
+              <TextBlock x:Name="BackupStatus" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" />
+            </Grid>
+          </StackPanel>
+        </Grid>
+      </TabItem>
+
+      <!-- ===================== RESTORE ===================== -->
+      <TabItem x:Name="RestoreTab" Header="  Restore  ">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+
+          <DockPanel Grid.Row="0">
+            <TextBlock Text="Backup folder" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <Button DockPanel.Dock="Right" Content="Open" Click="LoadBackup_Click" Margin="8,0,0,0" />
+            <Button DockPanel.Dock="Right" Content="Browse…" Click="BrowseBackup_Click" Margin="8,0,0,0" />
+            <TextBox x:Name="BackupFolderBox" />
+          </DockPanel>
+
+          <DockPanel Grid.Row="1" Margin="0,8">
+            <Button DockPanel.Dock="Right" Content="Untick all" Click="RestoreNone_Click" Margin="8,0,0,0" />
+            <Button DockPanel.Dock="Right" Content="Tick all" Click="RestoreAll_Click" Margin="8,0,0,0" />
+            <TextBlock x:Name="BackupInfo" VerticalAlignment="Center" Style="{StaticResource Hint}"
+                       Text="Pick the folder you backed up to (the one with manifest.json in it)." />
+          </DockPanel>
+
+          <DataGrid x:Name="RestoreGrid" Grid.Row="2" IsReadOnly="False">
+            <DataGrid.Columns>
+              <DataGridTemplateColumn Header="" Width="34" SortMemberPath="Include">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <CheckBox IsChecked="{Binding Include, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" Margin="0" />
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+              <DataGridTextColumn Header="App" Binding="{Binding Name}" Width="2*" IsReadOnly="True" />
+              <DataGridTemplateColumn Header="Install" Width="60" SortMemberPath="RestoreInstall">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <CheckBox IsChecked="{Binding RestoreInstall, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" Margin="0" />
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+              <DataGridTemplateColumn Header="Settings" Width="70" SortMemberPath="RestoreData">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <CheckBox IsChecked="{Binding RestoreData, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" Margin="0"
+                              IsEnabled="{Binding HasData}" />
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+              <DataGridTextColumn Header="Reinstall with" Binding="{Binding InstallMethod}" Width="110" IsReadOnly="True" />
+              <DataGridTextColumn Header="Saved settings" Binding="{Binding DataSummary}" Width="1.2*" IsReadOnly="True" />
+              <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="1.5*" IsReadOnly="True" />
+            </DataGrid.Columns>
+          </DataGrid>
+
+          <StackPanel Grid.Row="3" Margin="0,10,0,0">
+            <WrapPanel>
+              <CheckBox x:Name="SilentBox" Content="Install winget apps silently" IsChecked="True" />
+              <CheckBox x:Name="PreferStoredBox" Content="Use saved installers instead of winget (offline)" />
+              <CheckBox x:Name="KeepExistingBox" Content="Keep existing settings as *.pre-restore copies" IsChecked="True" />
+            </WrapPanel>
+            <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,0"
+                       Text="Apps are installed first, then their settings are copied back. Close any app that opens after installing so its settings can be replaced." />
+            <DockPanel Margin="0,8,0,0">
+              <Button x:Name="CancelRestoreButton" DockPanel.Dock="Right" Content="Cancel" IsEnabled="False" Click="Cancel_Click" Margin="8,0,0,0" />
+              <Button x:Name="RestoreButton" DockPanel.Dock="Right" Content="Restore" Style="{StaticResource PrimaryButton}"
+                      Click="Restore_Click" Margin="8,0,0,0" IsEnabled="False" />
+              <Grid>
+                <ProgressBar x:Name="RestoreProgress" Height="18" Maximum="1" />
+                <TextBlock x:Name="RestoreStatus" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" />
+              </Grid>
+            </DockPanel>
+          </StackPanel>
+        </Grid>
+      </TabItem>
+    </TabControl>
+
+    <GridSplitter Grid.Row="2" Height="5" HorizontalAlignment="Stretch" Background="Transparent" />
+
+    <!-- Log -->
+    <DockPanel Grid.Row="3" Margin="12,0,12,12">
+      <DockPanel DockPanel.Dock="Top" Margin="0,0,0,4">
+        <Button DockPanel.Dock="Right" Content="Save log…" Click="SaveLog_Click" Margin="0" MinWidth="0" Padding="8,2" />
+        <TextBlock Text="Log" FontWeight="SemiBold" VerticalAlignment="Center" />
+      </DockPanel>
+      <TextBox x:Name="LogBox" IsReadOnly="True" FontFamily="Consolas" FontSize="12" TextWrapping="NoWrap"
+               VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Background="#FAFBFC" />
+    </DockPanel>
+  </Grid>
+</Window>
